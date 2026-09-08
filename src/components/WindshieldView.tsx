@@ -18,8 +18,11 @@ export const WindshieldView: React.FC<WindshieldViewProps> = ({
   showHud = true,
   beamIntensity = 80,
 }) => {
-  const isLightsOn = headlights === 'HEADLIGHTS' || headlights === 'HIGH_BEAMS';
-  const isHighBeam = headlights === 'HIGH_BEAMS';
+  const isLightsOn =
+    headlights === 'HEADLIGHTS' ||
+    headlights === 'HIGH_BEAMS' ||
+    headlights === 'STROBE';
+  const isHighBeam = headlights === 'HIGH_BEAMS' || headlights === 'STROBE';
   const isParking = headlights === 'PARKING';
   const intensityFactor = beamIntensity / 100;
 

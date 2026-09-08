@@ -16,6 +16,7 @@ interface SteeringWheelProps {
   onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
   onResetSteering: () => void;
   onShiftGear?: (delta: number) => void;
+  showTopControlBar?: boolean;
 }
 
 export const SteeringWheel: React.FC<SteeringWheelProps> = ({
@@ -30,6 +31,7 @@ export const SteeringWheel: React.FC<SteeringWheelProps> = ({
   onPointerDown,
   onResetSteering,
   onShiftGear,
+  showTopControlBar = false,
 }) => {
   const currentTheme = THEMES[theme];
   const isLightsOn = headlights === 'HEADLIGHTS' || headlights === 'HIGH_BEAMS';
@@ -53,47 +55,49 @@ export const SteeringWheel: React.FC<SteeringWheelProps> = ({
       id="steering-wheel-container"
       className="relative flex flex-col items-center select-none"
     >
-      {/* Steering Control Indicators & Gyro Bar */}
-      <div className="flex items-center space-x-2 mb-3 bg-neutral-900/80 px-3 py-1.5 rounded-full border border-neutral-800 text-xs font-mono">
-        <button
-          id="gyro-toggle-btn"
-          onClick={onRequestGyro}
-          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-            isGyroActive
-              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-              : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700'
-          }`}
-          title="Toggle phone gyroscope sensor for motion tilt steering"
-        >
-          <Smartphone className="w-3.5 h-3.5" />
-          <span>{isGyroActive ? 'GYRO TILT: ON' : 'GYRO: OFF'}</span>
-        </button>
-
-        <span className="text-neutral-500">|</span>
-
-        {/* Angle Readout */}
-        <div className="flex items-center space-x-1 text-neutral-300 font-bold">
-          <Compass className="w-3.5 h-3.5 text-neutral-400" />
-          <span>{Math.round(steeringAngle)}°</span>
-        </div>
-
-        {Math.abs(steeringAngle) > 2 && (
+      {/* Steering Control Indicators & Gyro Bar (Only shown if requested) */}
+      {showTopControlBar && (
+        <div className="flex items-center space-x-2 mb-2 bg-neutral-900/80 px-3 py-1 rounded-full border border-neutral-800 text-xs font-mono">
           <button
-            id="reset-steer-btn"
-            onClick={onResetSteering}
-            className="text-neutral-400 hover:text-white p-1 rounded hover:bg-neutral-800 cursor-pointer"
-            title="Center wheel"
+            id="gyro-toggle-btn"
+            onClick={onRequestGyro}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full transition-all cursor-pointer ${
+              isGyroActive
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700'
+            }`}
+            title="Toggle phone gyroscope sensor for motion tilt steering"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>{isGyroActive ? 'GYRO: ON' : 'GYRO: OFF'}</span>
           </button>
-        )}
-      </div>
+
+          <span className="text-neutral-500">|</span>
+
+          {/* Angle Readout */}
+          <div className="flex items-center space-x-1 text-neutral-300 font-bold">
+            <Compass className="w-3.5 h-3.5 text-neutral-400" />
+            <span>{Math.round(steeringAngle)}°</span>
+          </div>
+
+          {Math.abs(steeringAngle) > 2 && (
+            <button
+              id="reset-steer-btn"
+              onClick={onResetSteering}
+              className="text-neutral-400 hover:text-white p-1 rounded hover:bg-neutral-800 cursor-pointer"
+              title="Center wheel"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Steering Column & Ambient Glow Halo Behind Wheel */}
       <div className="relative flex items-center justify-center">
         {/* Soft Ambient Backlight Glow onto Cockpit / Steering Column */}
         <div
-          className={`absolute w-72 sm:w-84 h-72 sm:h-84 rounded-full pointer-events-none transition-all duration-700 ${
+          className={`absolute w-72 sm:w-84 md:w-96 h-72 sm:h-84 md:h-96 rounded-full pointer-events-none transition-all duration-700 ${
             hasGlow ? 'opacity-75 scale-105' : 'opacity-0 scale-95'
           }`}
           style={{
@@ -103,15 +107,16 @@ export const SteeringWheel: React.FC<SteeringWheelProps> = ({
         />
 
         {/* Paddle Shifters (Behind Wheel) */}
-        <div className="absolute inset-x-[-12px] top-12 flex justify-between pointer-events-auto">
+        <div className="absolute inset-x-[-14px] top-12 sm:top-16 flex justify-between pointer-events-auto z-10">
           {/* Left Paddle (- Downshift) */}
           <button
             id="paddle-downshift"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               soundFx.playSwitchClick(soundEnabled);
               if (onShiftGear) onShiftGear(-1);
             }}
-            className="w-8 h-20 rounded-l-2xl bg-gradient-to-r from-neutral-800 to-neutral-750 border-y border-l border-neutral-600 shadow-lg flex items-center justify-center text-neutral-400 hover:text-white hover:border-amber-400 active:scale-95 transition-all cursor-pointer font-mono font-black text-sm"
+            className="w-8 sm:w-9 h-20 sm:h-24 rounded-l-2xl bg-gradient-to-r from-neutral-800 to-neutral-750 border-y border-l border-neutral-600 shadow-xl flex items-center justify-center text-neutral-400 hover:text-white hover:border-amber-400 active:scale-95 transition-all cursor-pointer font-mono font-black text-sm"
             title="Paddle Downshift (-)"
           >
             -
@@ -120,11 +125,12 @@ export const SteeringWheel: React.FC<SteeringWheelProps> = ({
           {/* Right Paddle (+ Upshift) */}
           <button
             id="paddle-upshift"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               soundFx.playSwitchClick(soundEnabled);
               if (onShiftGear) onShiftGear(1);
             }}
-            className="w-8 h-20 rounded-r-2xl bg-gradient-to-l from-neutral-800 to-neutral-750 border-y border-r border-neutral-600 shadow-lg flex items-center justify-center text-neutral-400 hover:text-white hover:border-amber-400 active:scale-95 transition-all cursor-pointer font-mono font-black text-sm"
+            className="w-8 sm:w-9 h-20 sm:h-24 rounded-r-2xl bg-gradient-to-l from-neutral-800 to-neutral-750 border-y border-r border-neutral-600 shadow-xl flex items-center justify-center text-neutral-400 hover:text-white hover:border-amber-400 active:scale-95 transition-all cursor-pointer font-mono font-black text-sm"
             title="Paddle Upshift (+)"
           >
             +
@@ -135,7 +141,7 @@ export const SteeringWheel: React.FC<SteeringWheelProps> = ({
         <div
           id="steering-wheel-rotator"
           onPointerDown={onPointerDown}
-          className={`relative w-64 h-64 sm:w-76 sm:h-76 rounded-full flex items-center justify-center touch-none cursor-grab active:cursor-grabbing transition-transform ${
+          className={`relative w-64 h-64 sm:w-80 sm:h-80 md:w-92 md:h-92 rounded-full flex items-center justify-center touch-none cursor-grab active:cursor-grabbing transition-transform ${
             isDragging ? 'duration-0' : 'duration-150 ease-out'
           }`}
           style={{

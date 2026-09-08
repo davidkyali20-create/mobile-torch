@@ -3,15 +3,12 @@ import { HeadlightMode, DashboardTheme, SpeedUnit, GearMode } from './types';
 import { useFlashlight } from './hooks/useFlashlight';
 import { useGpsSpeed } from './hooks/useGpsSpeed';
 import { useSteering } from './hooks/useSteering';
-import { WindshieldView } from './components/WindshieldView';
-import { InstrumentCluster } from './components/InstrumentCluster';
-import { HeadlightStalk } from './components/HeadlightStalk';
-import { SteeringWheel } from './components/SteeringWheel';
+import { CockpitPOV } from './components/CockpitPOV';
 import { CockpitControls } from './components/CockpitControls';
 import { MobileDevModal } from './components/MobileDevModal';
 import { IgnitionButton } from './components/IgnitionButton';
 import { soundFx } from './utils/audio';
-import { Camera, Volume2, VolumeX, Sparkles, SunMedium } from 'lucide-react';
+import { Camera, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function App() {
   // Engine Ignition & Startup Gate States
@@ -32,13 +29,16 @@ export default function App() {
   const [beamIntensity, setBeamIntensity] = useState<number>(80); // 10% to 100%
   const [showLightSpeedMode, setShowLightSpeedMode] = useState<boolean>(false);
 
-  // Flashlight / Hardware Torch Controller
+  // Flashlight / Hardware Torch Controller with Strobe
   const {
     torchActive,
+    isStrobeActive,
     torchSupported,
     permissionGranted,
     error: torchError,
     setTorch,
+    startStrobe,
+    stopStrobe,
     requestPermission: requestCameraPermission,
   } = useFlashlight();
 
@@ -68,6 +68,7 @@ export default function App() {
     requestGyroPermission,
     onWheelPointerDown,
     resetSteering,
+    setManualAngle,
   } = useSteering();
 
   // Realistic Car Engine Start Sequence
@@ -91,6 +92,7 @@ export default function App() {
   // Engine Stop Handler
   const handleStopEngine = () => {
     soundFx.playEngineShutdown(soundEnabled);
+    stopStrobe();
     setIsIgnitionOn(false);
     setHeadlights('OFF');
     setTorch(false);
@@ -108,10 +110,15 @@ export default function App() {
   const handleHeadlightsChange = useCallback(
     async (newMode: HeadlightMode) => {
       setHeadlights(newMode);
-      const shouldTorchBeOn = newMode === 'HEADLIGHTS' || newMode === 'HIGH_BEAMS';
-      await setTorch(shouldTorchBeOn);
+      if (newMode === 'STROBE') {
+        startStrobe();
+      } else {
+        stopStrobe();
+        const shouldTorchBeOn = newMode === 'HEADLIGHTS' || newMode === 'HIGH_BEAMS';
+        await setTorch(shouldTorchBeOn);
+      }
     },
-    [setTorch]
+    [setTorch, startStrobe, stopStrobe]
   );
 
   // High beam momentary flash
@@ -124,9 +131,18 @@ export default function App() {
     }, 450);
   }, [setTorch]);
 
+  // Tactical Strobe Trigger (from Stalk long-press)
+  const handleTriggerStrobe = useCallback(() => {
+    if (headlights === 'STROBE') {
+      handleHeadlightsChange('HEADLIGHTS');
+    } else {
+      handleHeadlightsChange('STROBE');
+    }
+  }, [headlights, handleHeadlightsChange]);
+
   // Turn signal audio loop
   useEffect(() => {
-    if (turnSignal === 'none') return;
+    if (turnSignal === 'none' && headlights !== 'STROBE') return;
     let isTick = true;
     const interval = setInterval(() => {
       soundFx.playTurnSignalTick(isTick, soundEnabled);
@@ -134,7 +150,7 @@ export default function App() {
     }, 400);
 
     return () => clearInterval(interval);
-  }, [turnSignal, soundEnabled]);
+  }, [turnSignal, headlights, soundEnabled]);
 
   // Paddle shift handler
   const handleShiftGear = useCallback(
@@ -150,7 +166,7 @@ export default function App() {
   return (
     <div
       id="car-cockpit-root"
-      className="min-h-screen bg-[#050608] text-neutral-100 flex flex-col items-center justify-between p-2 sm:p-4 md:p-6 overflow-x-hidden selection:bg-amber-500 selection:text-black font-sans relative"
+      className="min-h-screen bg-[#040508] text-neutral-100 flex flex-col items-center justify-between p-2 sm:p-4 md:p-6 overflow-x-hidden selection:bg-amber-500 selection:text-black font-sans relative"
     >
       {/* 1. Ignition Gate Screen (Before anyone accesses the dashboard) */}
       {!isIgnitionOn && (
@@ -164,89 +180,71 @@ export default function App() {
 
       {/* Top Notification / Hardware Permission Banner */}
       {!permissionGranted && torchSupported === null && (
-        <div className="w-full max-w-4xl mb-2 py-2 px-3 sm:px-4 rounded-xl bg-neutral-900/90 border border-neutral-700/80 text-xs font-mono flex items-center justify-between shadow-lg">
+        <div className="w-full max-w-5xl mb-2 py-2 px-3 sm:px-4 rounded-xl bg-neutral-900/90 border border-neutral-700/80 text-xs font-mono flex items-center justify-between shadow-lg">
           <div className="flex items-center space-x-2 text-neutral-300">
             <Camera className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              Enable Camera permission to sync the virtual headlight stalk with your phone's physical LED torch
+              Connect the virtual headlight stalk to your phone's physical LED torch
             </span>
           </div>
           <button
             onClick={() => requestCameraPermission()}
             className="ml-2 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold shrink-0 cursor-pointer transition-all"
           >
-            Authorize Torch
+            Authorize Camera Torch
           </button>
         </div>
       )}
 
-      {/* Main Cockpit Display Frame */}
+      {/* Main First-Person Driver's Viewport (POV) */}
       <div className="w-full max-w-5xl flex flex-col space-y-4">
-        {/* 1. Windshield Highway Scenery View */}
-        <WindshieldView
+        <CockpitPOV
           headlights={headlights}
+          onHeadlightsChange={handleHeadlightsChange}
+          onPullFlash={handlePullFlash}
+          onTriggerStrobe={handleTriggerStrobe}
+          torchActive={torchActive}
+          isStrobeActive={isStrobeActive}
           speed={currentSpeed}
-          unit={unit}
-          steeringAngle={steeringAngle}
-          showHud={true}
-          beamIntensity={beamIntensity}
-        />
-
-        {/* 2. Illuminated Instrument Cluster (Speedometer & Tachometer with Light Speed & Intensity) */}
-        <InstrumentCluster
-          headlights={headlights}
-          theme={theme}
-          speed={currentSpeed}
-          maxSpeed={unit === 'km/h' ? 240 : 160}
-          unit={unit}
           rpm={rpm}
           gear={gear}
+          unit={unit}
+          theme={theme}
+          clusterBrightness={clusterBrightness}
+          onClusterBrightnessChange={setClusterBrightness}
+          beamIntensity={beamIntensity}
+          onBeamIntensityChange={setBeamIntensity}
           odometer={odometer}
           trip={trip}
           turnSignal={turnSignal}
           isGpsActive={isGpsActive}
           gpsAccuracy={gpsAccuracy}
-          torchActive={torchActive}
           torchSupported={torchSupported}
-          clusterBrightness={clusterBrightness}
-          beamIntensity={beamIntensity}
-          isNeedleSweeping={isNeedleSweeping}
+          steeringAngle={steeringAngle}
+          isGyroActive={isGyroActive}
+          gyroSupported={gyroSupported}
+          isDragging={isDragging}
+          onRequestGyro={requestGyroPermission}
+          onWheelPointerDown={onWheelPointerDown}
+          onResetSteering={resetSteering}
+          onShiftGear={handleShiftGear}
+          soundEnabled={soundEnabled}
           showLightSpeedMode={showLightSpeedMode}
           onToggleLightSpeedMode={() => setShowLightSpeedMode((prev) => !prev)}
+          isNeedleSweeping={isNeedleSweeping}
+          isIgnitionOn={isIgnitionOn}
+          isStartingEngine={isStartingEngine}
+          onToggleIgnition={handleToggleIgnition}
+          throttlePercent={throttlePercent}
+          onThrottleChange={setThrottlePercent}
+          onBrake={applyBrake}
+          isSimulating={isSimulating}
+          onSimulatingToggle={setIsSimulating}
+          onGearChange={setGear}
+          onSteerManual={setManualAngle}
         />
 
-        {/* 3. Driver Controls: Headlight Stalk (Left) & Steering Wheel (Center) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center justify-center pt-2">
-          {/* Headlight Switch Stalk (Left side, next to steering column) */}
-          <div className="md:col-span-5 flex justify-center md:justify-end">
-            <HeadlightStalk
-              mode={headlights}
-              onModeChange={handleHeadlightsChange}
-              torchActive={torchActive}
-              soundEnabled={soundEnabled}
-              onPullFlash={handlePullFlash}
-            />
-          </div>
-
-          {/* Interactive Steering Wheel (Center) */}
-          <div className="md:col-span-7 flex justify-center md:justify-start">
-            <SteeringWheel
-              steeringAngle={steeringAngle}
-              isGyroActive={isGyroActive}
-              gyroSupported={gyroSupported}
-              isDragging={isDragging}
-              headlights={headlights}
-              theme={theme}
-              soundEnabled={soundEnabled}
-              onRequestGyro={requestGyroPermission}
-              onPointerDown={onWheelPointerDown}
-              onResetSteering={resetSteering}
-              onShiftGear={handleShiftGear}
-            />
-          </div>
-        </div>
-
-        {/* 4. Cockpit Controls Deck (Lighting Adjustment Dimmers, Transmission, Throttle Simulator) */}
+        {/* Auxiliary Cockpit Controls Deck (Pedals, Throttle Simulator, Gear Transmission & Developer Guide) */}
         <CockpitControls
           theme={theme}
           onThemeChange={setTheme}

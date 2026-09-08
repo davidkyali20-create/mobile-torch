@@ -58,8 +58,12 @@ export const InstrumentCluster: React.FC<InstrumentClusterProps> = ({
   onToggleLightSpeedMode,
 }) => {
   const currentTheme = THEMES[theme];
-  const isLightsOn = headlights === 'HEADLIGHTS' || headlights === 'HIGH_BEAMS';
+  const isLightsOn =
+    headlights === 'HEADLIGHTS' ||
+    headlights === 'HIGH_BEAMS' ||
+    headlights === 'STROBE';
   const isHighBeam = headlights === 'HIGH_BEAMS';
+  const isStrobe = headlights === 'STROBE';
   const isParking = headlights === 'PARKING';
   const hasGlow = isLightsOn || isParking;
 
@@ -260,12 +264,12 @@ export const InstrumentCluster: React.FC<InstrumentClusterProps> = ({
         </div>
       </div>
 
-      {/* Main Gauges Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-center">
+      {/* Main Gauges Layout (Horizontal Cockpit Binnacle) */}
+      <div className="flex flex-row items-center justify-between gap-1 sm:gap-2.5 md:gap-4 w-full">
         {/* LEFT GAUGE: TACHOMETER (RPM x 1000) OR LIGHT INTENSITY METER */}
         <div
           id="tachometer-gauge"
-          className="relative aspect-square max-w-[280px] sm:max-w-[320px] mx-auto w-full rounded-full p-2.5 transition-all duration-300"
+          className="relative aspect-square w-[29%] sm:w-[30%] max-w-[270px] mx-auto rounded-full p-1 sm:p-2.5 transition-all duration-300 shrink-0"
           style={dialBorderStyle}
         >
           {/* Gauge Inner Face */}
@@ -436,7 +440,7 @@ export const InstrumentCluster: React.FC<InstrumentClusterProps> = ({
         {/* CENTER CONSOLE: DIGITAL SPEEDOMETER & LIGHT SPEED / INTENSITY TELEMETRY */}
         <div
           id="digital-center-console"
-          className="relative w-full max-w-[340px] mx-auto py-4 px-3 sm:px-4 rounded-2xl bg-neutral-950/90 border border-neutral-800 flex flex-col items-center justify-between shadow-inner"
+          className="relative flex-1 min-w-0 max-w-[340px] mx-auto py-2.5 sm:py-4 px-2 sm:px-4 rounded-2xl bg-neutral-950/90 border border-neutral-800 flex flex-col items-center justify-between shadow-inner shrink-1"
           style={dialBorderStyle}
         >
           {/* Top Gear selector bar */}
@@ -567,7 +571,7 @@ export const InstrumentCluster: React.FC<InstrumentClusterProps> = ({
         {/* RIGHT GAUGE: SPEEDOMETER (0 - 240 km/h or 0 - 160 mph / c Ratio) */}
         <div
           id="speedometer-gauge"
-          className="relative aspect-square max-w-[280px] sm:max-w-[320px] mx-auto w-full rounded-full p-2.5 transition-all duration-300"
+          className="relative aspect-square w-[29%] sm:w-[30%] max-w-[270px] mx-auto rounded-full p-1 sm:p-2.5 transition-all duration-300 shrink-0"
           style={dialBorderStyle}
         >
           {/* Gauge Inner Face */}

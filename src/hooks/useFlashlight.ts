@@ -2,22 +2,27 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 export interface FlashlightHookReturn {
   torchActive: boolean;
+  isStrobeActive: boolean;
   torchSupported: boolean | null; // null = pending check
   permissionGranted: boolean;
   error: string | null;
   toggleTorch: (forceState?: boolean) => Promise<boolean>;
   setTorch: (enable: boolean) => Promise<boolean>;
+  startStrobe: () => void;
+  stopStrobe: () => void;
   requestPermission: () => Promise<boolean>;
 }
 
 export function useFlashlight(): FlashlightHookReturn {
   const [torchActive, setTorchActive] = useState(false);
+  const [isStrobeActive, setIsStrobeActive] = useState(false);
   const [torchSupported, setTorchSupported] = useState<boolean | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
+  const strobeIntervalRef = useRef<number | null>(null);
 
   // Stop camera tracks cleanly
   const stopStream = useCallback(() => {
@@ -152,20 +157,57 @@ export function useFlashlight(): FlashlightHookReturn {
     [torchActive, setTorch]
   );
 
+  const stopStrobe = useCallback(() => {
+    if (strobeIntervalRef.current) {
+      window.clearInterval(strobeIntervalRef.current);
+      strobeIntervalRef.current = null;
+    }
+    setIsStrobeActive(false);
+    setTorch(false);
+  }, [setTorch]);
+
+  const startStrobe = useCallback(async () => {
+    stopStrobe();
+    setIsStrobeActive(true);
+    let state = true;
+    await setTorch(true);
+
+    strobeIntervalRef.current = window.setInterval(async () => {
+      state = !state;
+      const track = trackRef.current;
+      if (track && track.readyState === 'live') {
+        try {
+          await (track as any).applyConstraints({
+            advanced: [{ torch: state }],
+          });
+        } catch {
+          // Ignore
+        }
+      }
+      setTorchActive(state);
+    }, 120);
+  }, [setTorch, stopStrobe]);
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
+      if (strobeIntervalRef.current) {
+        clearInterval(strobeIntervalRef.current);
+      }
       stopStream();
     };
   }, [stopStream]);
 
   return {
     torchActive,
+    isStrobeActive,
     torchSupported,
     permissionGranted,
     error,
     toggleTorch,
     setTorch,
+    startStrobe,
+    stopStrobe,
     requestPermission,
   };
 }

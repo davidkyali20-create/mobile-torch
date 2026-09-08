@@ -1,4 +1,4 @@
-export type HeadlightMode = 'OFF' | 'PARKING' | 'HEADLIGHTS' | 'HIGH_BEAMS';
+export type HeadlightMode = 'OFF' | 'PARKING' | 'HEADLIGHTS' | 'HIGH_BEAMS' | 'STROBE';
 
 export type DashboardTheme = 'neon-blue' | 'amber' | 'cyber-red' | 'ice-white';
 
@@ -10,6 +10,7 @@ export interface DashboardState {
   isIgnitionOn: boolean;
   isStartingEngine: boolean;
   headlights: HeadlightMode;
+  strobeActive: boolean;
   theme: DashboardTheme;
   unit: SpeedUnit;
   gear: GearMode;
