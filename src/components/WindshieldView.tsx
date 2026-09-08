@@ -7,6 +7,7 @@ interface WindshieldViewProps {
   unit: string;
   steeringAngle: number;
   showHud?: boolean;
+  beamIntensity?: number; // 10 to 100%
 }
 
 export const WindshieldView: React.FC<WindshieldViewProps> = ({
@@ -15,10 +16,12 @@ export const WindshieldView: React.FC<WindshieldViewProps> = ({
   unit,
   steeringAngle,
   showHud = true,
+  beamIntensity = 80,
 }) => {
   const isLightsOn = headlights === 'HEADLIGHTS' || headlights === 'HIGH_BEAMS';
   const isHighBeam = headlights === 'HIGH_BEAMS';
   const isParking = headlights === 'PARKING';
+  const intensityFactor = beamIntensity / 100;
 
   // Road curve based on steering tilt
   const roadOffset = Math.max(-60, Math.min(60, steeringAngle * 0.8));
@@ -97,7 +100,7 @@ export const WindshieldView: React.FC<WindshieldViewProps> = ({
       {/* Headlight Beams Projected Forward */}
       {/* Low Beams Cone */}
       <div
-        className={`absolute bottom-0 inset-x-0 h-40 pointer-events-none transition-all duration-500 ${
+        className={`absolute bottom-0 inset-x-0 h-40 pointer-events-none transition-all duration-300 ${
           isLightsOn
             ? isHighBeam
               ? 'opacity-95'
@@ -107,6 +110,7 @@ export const WindshieldView: React.FC<WindshieldViewProps> = ({
             : 'opacity-0'
         }`}
         style={{
+          opacity: isLightsOn ? (isHighBeam ? 0.95 : 0.8) * intensityFactor : isParking ? 0.25 * intensityFactor : 0,
           background: isHighBeam
             ? 'radial-gradient(ellipse 70% 80% at 50% 100%, rgba(255,255,255,0.45) 0%, rgba(190,227,255,0.3) 40%, rgba(0,140,255,0.1) 70%, transparent 100%)'
             : isLightsOn
@@ -121,6 +125,7 @@ export const WindshieldView: React.FC<WindshieldViewProps> = ({
         <div
           className="absolute bottom-10 left-1/2 -translate-x-1/2 w-3/4 sm:w-2/3 h-48 pointer-events-none transition-opacity duration-300 animate-pulse"
           style={{
+            opacity: 0.9 * intensityFactor,
             background:
               'linear-gradient(to top, rgba(240, 249, 255, 0.4) 0%, rgba(186, 230, 253, 0.15) 60%, transparent 100%)',
             clipPath: 'polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)',

@@ -9,10 +9,16 @@ import { HeadlightStalk } from './components/HeadlightStalk';
 import { SteeringWheel } from './components/SteeringWheel';
 import { CockpitControls } from './components/CockpitControls';
 import { MobileDevModal } from './components/MobileDevModal';
+import { IgnitionButton } from './components/IgnitionButton';
 import { soundFx } from './utils/audio';
-import { AlertCircle, Camera, Smartphone, Sparkles } from 'lucide-react';
+import { Camera, Volume2, VolumeX, Sparkles, SunMedium } from 'lucide-react';
 
 export default function App() {
+  // Engine Ignition & Startup Gate States
+  const [isIgnitionOn, setIsIgnitionOn] = useState(false);
+  const [isStartingEngine, setIsStartingEngine] = useState(false);
+  const [isNeedleSweeping, setIsNeedleSweeping] = useState(false);
+
   // Dashboard primary states
   const [headlights, setHeadlights] = useState<HeadlightMode>('OFF');
   const [theme, setTheme] = useState<DashboardTheme>('neon-blue');
@@ -20,6 +26,11 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [turnSignal, setTurnSignal] = useState<'none' | 'left' | 'right' | 'hazard'>('none');
   const [isMobileDevOpen, setIsMobileDevOpen] = useState(false);
+
+  // Lighting & Calculation States
+  const [clusterBrightness, setClusterBrightness] = useState<number>(85); // 10% to 100%
+  const [beamIntensity, setBeamIntensity] = useState<number>(80); // 10% to 100%
+  const [showLightSpeedMode, setShowLightSpeedMode] = useState<boolean>(false);
 
   // Flashlight / Hardware Torch Controller
   const {
@@ -38,7 +49,6 @@ export default function App() {
     gear,
     isGpsActive,
     gpsAccuracy,
-    gpsError,
     isSimulating,
     throttlePercent,
     odometer,
@@ -59,6 +69,40 @@ export default function App() {
     onWheelPointerDown,
     resetSteering,
   } = useSteering();
+
+  // Realistic Car Engine Start Sequence
+  const handleStartEngine = async () => {
+    if (isStartingEngine) return;
+    setIsStartingEngine(true);
+
+    // Trigger modern sports car gauge needle sweep
+    setIsNeedleSweeping(true);
+    setTimeout(() => {
+      setIsNeedleSweeping(false);
+    }, 1200);
+
+    // Synthesize authentic starter motor crank & throttle roar
+    await soundFx.playEngineIgnition(soundEnabled);
+
+    setIsIgnitionOn(true);
+    setIsStartingEngine(false);
+  };
+
+  // Engine Stop Handler
+  const handleStopEngine = () => {
+    soundFx.playEngineShutdown(soundEnabled);
+    setIsIgnitionOn(false);
+    setHeadlights('OFF');
+    setTorch(false);
+  };
+
+  const handleToggleIgnition = () => {
+    if (isIgnitionOn) {
+      handleStopEngine();
+    } else {
+      handleStartEngine();
+    }
+  };
 
   // Sync physical flashlight whenever headlights mode changes
   const handleHeadlightsChange = useCallback(
@@ -106,8 +150,18 @@ export default function App() {
   return (
     <div
       id="car-cockpit-root"
-      className="min-h-screen bg-[#050608] text-neutral-100 flex flex-col items-center justify-between p-2 sm:p-4 md:p-6 overflow-x-hidden selection:bg-amber-500 selection:text-black font-sans"
+      className="min-h-screen bg-[#050608] text-neutral-100 flex flex-col items-center justify-between p-2 sm:p-4 md:p-6 overflow-x-hidden selection:bg-amber-500 selection:text-black font-sans relative"
     >
+      {/* 1. Ignition Gate Screen (Before anyone accesses the dashboard) */}
+      {!isIgnitionOn && (
+        <IgnitionButton
+          isIgnitionOn={isIgnitionOn}
+          isStartingEngine={isStartingEngine}
+          onPressStart={handleStartEngine}
+          variant="screen"
+        />
+      )}
+
       {/* Top Notification / Hardware Permission Banner */}
       {!permissionGranted && torchSupported === null && (
         <div className="w-full max-w-4xl mb-2 py-2 px-3 sm:px-4 rounded-xl bg-neutral-900/90 border border-neutral-700/80 text-xs font-mono flex items-center justify-between shadow-lg">
@@ -135,9 +189,10 @@ export default function App() {
           unit={unit}
           steeringAngle={steeringAngle}
           showHud={true}
+          beamIntensity={beamIntensity}
         />
 
-        {/* 2. Illuminated Instrument Cluster (Speedometer & Tachometer) */}
+        {/* 2. Illuminated Instrument Cluster (Speedometer & Tachometer with Light Speed & Intensity) */}
         <InstrumentCluster
           headlights={headlights}
           theme={theme}
@@ -153,6 +208,11 @@ export default function App() {
           gpsAccuracy={gpsAccuracy}
           torchActive={torchActive}
           torchSupported={torchSupported}
+          clusterBrightness={clusterBrightness}
+          beamIntensity={beamIntensity}
+          isNeedleSweeping={isNeedleSweeping}
+          showLightSpeedMode={showLightSpeedMode}
+          onToggleLightSpeedMode={() => setShowLightSpeedMode((prev) => !prev)}
         />
 
         {/* 3. Driver Controls: Headlight Stalk (Left) & Steering Wheel (Center) */}
@@ -186,7 +246,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* 4. Cockpit Controls Deck (Pedals, Throttle Simulator, GPS, Glow Theme) */}
+        {/* 4. Cockpit Controls Deck (Lighting Adjustment Dimmers, Transmission, Throttle Simulator) */}
         <CockpitControls
           theme={theme}
           onThemeChange={setTheme}
@@ -198,7 +258,7 @@ export default function App() {
           onSimulatingToggle={setIsSimulating}
           throttlePercent={throttlePercent}
           onThrottleChange={setThrottlePercent}
-          onBrake={() => applyBrake(100)}
+          onBrake={applyBrake}
           turnSignal={turnSignal}
           onTurnSignalChange={setTurnSignal}
           soundEnabled={soundEnabled}
@@ -208,10 +268,19 @@ export default function App() {
           onRequestCameraPermission={requestCameraPermission}
           permissionGranted={permissionGranted}
           headlights={headlights}
+          clusterBrightness={clusterBrightness}
+          onClusterBrightnessChange={setClusterBrightness}
+          beamIntensity={beamIntensity}
+          onBeamIntensityChange={setBeamIntensity}
+          showLightSpeedMode={showLightSpeedMode}
+          onToggleLightSpeedMode={() => setShowLightSpeedMode((prev) => !prev)}
+          isIgnitionOn={isIgnitionOn}
+          isStartingEngine={isStartingEngine}
+          onToggleIgnition={handleToggleIgnition}
         />
       </div>
 
-      {/* Senior Mobile Developer Specs & Native Code Modal */}
+      {/* Modal: Flutter & React Native Production Code for Mobile Developers */}
       <MobileDevModal
         isOpen={isMobileDevOpen}
         onClose={() => setIsMobileDevOpen(false)}

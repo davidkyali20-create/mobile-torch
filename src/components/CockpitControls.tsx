@@ -2,15 +2,17 @@ import React from 'react';
 import { DashboardTheme, SpeedUnit, GearMode, HeadlightMode } from '../types';
 import { THEMES } from '../utils/theme';
 import { soundFx } from '../utils/audio';
+import { IgnitionButton } from './IgnitionButton';
 import {
   Volume2,
   VolumeX,
-  Gauge,
   Palette,
   AlertTriangle,
   Code2,
-  ShieldCheck,
-  Zap,
+  Sun,
+  SunMedium,
+  Sliders,
+  Sparkles,
 } from 'lucide-react';
 
 interface CockpitControlsProps {
@@ -34,6 +36,15 @@ interface CockpitControlsProps {
   onRequestCameraPermission: () => void;
   permissionGranted: boolean;
   headlights: HeadlightMode;
+  clusterBrightness: number;
+  onClusterBrightnessChange: (val: number) => void;
+  beamIntensity: number;
+  onBeamIntensityChange: (val: number) => void;
+  showLightSpeedMode: boolean;
+  onToggleLightSpeedMode: () => void;
+  isIgnitionOn: boolean;
+  isStartingEngine: boolean;
+  onToggleIgnition: () => void;
 }
 
 export const CockpitControls: React.FC<CockpitControlsProps> = ({
@@ -53,28 +64,33 @@ export const CockpitControls: React.FC<CockpitControlsProps> = ({
   soundEnabled,
   onSoundToggle,
   onOpenMobileDevModal,
-  torchActive,
-  onRequestCameraPermission,
-  permissionGranted,
-  headlights,
+  clusterBrightness,
+  onClusterBrightnessChange,
+  beamIntensity,
+  onBeamIntensityChange,
+  showLightSpeedMode,
+  onToggleLightSpeedMode,
+  isIgnitionOn,
+  isStartingEngine,
+  onToggleIgnition,
 }) => {
-  const currentTheme = THEMES[theme];
-
   return (
     <div
       id="cockpit-controls-deck"
-      className="w-full max-w-4xl mx-auto mt-4 p-4 sm:p-5 rounded-2xl bg-neutral-900/90 border border-neutral-800 shadow-2xl flex flex-col space-y-4 select-none"
+      className="w-full max-w-4xl mx-auto mt-3 p-4 sm:p-5 rounded-2xl bg-neutral-900/90 border border-neutral-800 shadow-2xl flex flex-col space-y-4 select-none"
     >
-      {/* Top Bar: Quick Toggles (Theme, Sound, Native Specs) */}
+      {/* Top Bar: Ignition Status, Theme Picker, Sound & Code Specs */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-800/80">
-        {/* Left: Color Theme Selection */}
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1 text-xs font-mono text-neutral-400">
-            <Palette className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">CLUSTER GLOW:</span>
-          </div>
+        {/* Left: Engine Ignition Button & Theme Selection */}
+        <div className="flex items-center space-x-3">
+          <IgnitionButton
+            isIgnitionOn={isIgnitionOn}
+            isStartingEngine={isStartingEngine}
+            onPressStart={onToggleIgnition}
+            variant="compact"
+          />
 
-          <div className="flex items-center space-x-1.5 bg-neutral-950 p-1 rounded-lg border border-neutral-800">
+          <div className="hidden sm:flex items-center space-x-1.5 bg-neutral-950 p-1 rounded-lg border border-neutral-800">
             {(Object.keys(THEMES) as DashboardTheme[]).map((tKey) => {
               const t = THEMES[tKey];
               const isSelected = theme === tKey;
@@ -98,8 +114,22 @@ export const CockpitControls: React.FC<CockpitControlsProps> = ({
           </div>
         </div>
 
-        {/* Center: Unit & Sound Toggles */}
+        {/* Center: Light Speed Mode & Unit Toggles */}
         <div className="flex items-center space-x-2">
+          {/* Light Speed Calculation Switch */}
+          <button
+            id="light-speed-calculation-toggle"
+            onClick={onToggleLightSpeedMode}
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+              showLightSpeedMode
+                ? 'bg-sky-500/25 border-sky-400 text-sky-200 shadow-[0_0_12px_rgba(56,189,248,0.7)]'
+                : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>{showLightSpeedMode ? 'LIGHT SPEED: ON (c)' : 'CALC LIGHT SPEED'}</span>
+          </button>
+
           {/* Unit Toggle */}
           <div className="flex items-center bg-neutral-950 rounded-lg p-0.5 border border-neutral-800 text-xs font-mono">
             <button
@@ -107,7 +137,7 @@ export const CockpitControls: React.FC<CockpitControlsProps> = ({
                 soundFx.playSwitchClick(soundEnabled);
                 onUnitChange('km/h');
               }}
-              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
+              className={`px-2 py-1 rounded-md transition-all cursor-pointer font-bold ${
                 unit === 'km/h' ? 'bg-neutral-800 text-white shadow' : 'text-neutral-500'
               }`}
             >
@@ -118,7 +148,7 @@ export const CockpitControls: React.FC<CockpitControlsProps> = ({
                 soundFx.playSwitchClick(soundEnabled);
                 onUnitChange('mph');
               }}
-              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-bold ${
+              className={`px-2 py-1 rounded-md transition-all cursor-pointer font-bold ${
                 unit === 'mph' ? 'bg-neutral-800 text-white shadow' : 'text-neutral-500'
               }`}
             >
@@ -147,8 +177,62 @@ export const CockpitControls: React.FC<CockpitControlsProps> = ({
           className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-mono text-xs font-bold shadow-lg shadow-indigo-950/50 cursor-pointer active:scale-95 transition-all"
         >
           <Code2 className="w-3.5 h-3.5" />
-          <span>FLUTTER / REACT NATIVE CODE</span>
+          <span className="hidden sm:inline">FLUTTER / REACT NATIVE CODE</span>
+          <span className="sm:hidden">CODE</span>
         </button>
+      </div>
+
+      {/* Lighting Adjustment Deck: Cluster Rheostat Dimmer & Beam Light Intensity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-neutral-950/90 rounded-xl border border-neutral-800">
+        {/* Dimmer 1: Cluster Backlighting Dimmer (Rheostat) */}
+        <div className="flex flex-col space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <span className="text-neutral-400 flex items-center space-x-1.5">
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span>CLUSTER DIMMER ILLUMINATION:</span>
+            </span>
+            <span className="font-bold text-amber-300">{clusterBrightness}%</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <span className="text-[10px] font-mono text-neutral-500">10%</span>
+            <input
+              id="cluster-dimmer-slider"
+              type="range"
+              min="10"
+              max="100"
+              step="5"
+              value={clusterBrightness}
+              onChange={(e) => onClusterBrightnessChange(Number(e.target.value))}
+              className="flex-1 h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+            />
+            <span className="text-[10px] font-mono text-neutral-500">100%</span>
+          </div>
+        </div>
+
+        {/* Dimmer 2: Headlight Beam & Flashlight Output Intensity */}
+        <div className="flex flex-col space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <span className="text-neutral-400 flex items-center space-x-1.5">
+              <SunMedium className="w-3.5 h-3.5 text-sky-400" />
+              <span>BEAM & TORCH INTENSITY:</span>
+            </span>
+            <span className="font-bold text-sky-300">{beamIntensity}% POWER</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <span className="text-[10px] font-mono text-neutral-500">LOW</span>
+            <input
+              id="beam-intensity-slider"
+              type="range"
+              min="15"
+              max="100"
+              step="5"
+              value={beamIntensity}
+              onChange={(e) => onBeamIntensityChange(Number(e.target.value))}
+              className="flex-1 h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
+            />
+            <span className="text-[10px] font-mono text-neutral-500">ULTRA</span>
+          </div>
+        </div>
       </div>
 
       {/* Middle Bar: Throttle / GPS Mode & Driving Controls */}
