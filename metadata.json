@@ -1,0 +1,7 @@
+{
+  "name": "Car Dashboard Flashlight",
+  "description": "Interactive car dashboard with physical camera torch flashlight integration, GPS speedometer, and illuminated instrument cluster.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
